@@ -6,7 +6,7 @@
 
 @layer base {
   :root {
-    --background: 240 10% 98%;
+    --background: 0 0% 100%;
     --foreground: 240 10% 9%;
 
     --card: 0 0% 100%;
@@ -19,20 +19,20 @@
     --primary-foreground: 0 0% 100%;
     --primary-glow: 262 83% 70%;
 
-    --secondary: 220 14.3% 95.9%;
-    --secondary-foreground: 220.9 39.3% 11%;
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
 
-    --muted: 220 14.3% 95.9%;
-    --muted-foreground: 220 8.9% 46.1%;
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
 
-    --accent: 220 14.3% 95.9%;
-    --accent-foreground: 220.9 39.3% 11%;
+    --accent: 240 4.8% 95.9%;
+    --accent-foreground: 240 5.9% 10%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
     --ring: 262 83% 58%;
 
     --radius: 0.75rem;
@@ -40,16 +40,16 @@
     /* AI Theme Colors */
     --ai-blue: 217 91% 59%;
     --ai-purple: 262 83% 58%;
-    --ai-gradient: linear-gradient(135deg, hsl(var(--ai-blue)), hsl(var(--ai-purple)));
-    --ai-gradient-subtle: linear-gradient(135deg, hsl(var(--ai-blue) / 0.1), hsl(var(--ai-purple) / 0.1));
+    --ai-gradient: linear-gradient(135deg, hsl(217 91% 59%), hsl(262 83% 58%));
+    --ai-gradient-subtle: linear-gradient(135deg, hsl(217 91% 59% / 0.1), hsl(262 83% 58% / 0.1));
     
     /* Premium Theme */
     --premium-gold: 45 93% 58%;
-    --premium-gradient: linear-gradient(135deg, hsl(var(--ai-purple)), hsl(var(--premium-gold)));
+    --premium-gradient: linear-gradient(135deg, hsl(262 83% 58%), hsl(45 93% 58%));
     
     /* Glass Effect */
-    --glass-bg: hsl(0 0% 100% / 0.8);
-    --glass-border: hsl(0 0% 100% / 0.2);
+    --glass-bg: 0 0% 100% / 0.8;
+    --glass-border: 0 0% 100% / 0.2;
     --glass-shadow: 0 8px 32px 0 hsl(0 0% 0% / 0.1);
     
     /* Animations */
@@ -75,25 +75,25 @@
 
   .dark {
     --background: 240 10% 4%;
-    --foreground: 240 5% 96%;
+    --foreground: 0 0% 98%;
 
     --card: 240 10% 6%;
-    --card-foreground: 240 5% 96%;
+    --card-foreground: 0 0% 98%;
 
     --popover: 240 10% 6%;
-    --popover-foreground: 240 5% 96%;
+    --popover-foreground: 0 0% 98%;
 
     --primary: 262 83% 58%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 240 5% 96%;
+    --secondary-foreground: 0 0% 98%;
 
     --muted: 240 3.7% 15.9%;
     --muted-foreground: 240 5% 64.9%;
 
     --accent: 240 3.7% 15.9%;
-    --accent-foreground: 240 5% 96%;
+    --accent-foreground: 0 0% 98%;
 
     --destructive: 0 62.8% 50.6%;
     --destructive-foreground: 0 0% 98%;
@@ -103,8 +103,8 @@
     --ring: 262 83% 58%;
 
     /* Dark Mode Glass Effect */
-    --glass-bg: hsl(240 10% 6% / 0.8);
-    --glass-border: hsl(240 5% 96% / 0.1);
+    --glass-bg: 240 10% 6% / 0.8;
+    --glass-border: 240 5% 96% / 0.1;
     --glass-shadow: 0 8px 32px 0 hsl(0 0% 0% / 0.3);
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;

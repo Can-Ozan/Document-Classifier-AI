@@ -55,10 +55,10 @@ export function DocumentClassifier({ isPremium = false }: DocumentClassifierProp
     if (files.length === 0) return
 
     const file = files[0]
-    if (!file.type.includes('text') && !file.type.includes('pdf')) {
+    if (!file.type.includes('text') && !file.type.includes('pdf') && !file.type.includes('document')) {
       toast({
         title: "Desteklenmeyen dosya türü",
-        description: "Lütfen metin veya PDF dosyası yükleyin.",
+        description: "Lütfen metin, PDF veya Word dosyası yükleyin.",
         variant: "destructive"
       })
       return
@@ -69,29 +69,90 @@ export function DocumentClassifier({ isPremium = false }: DocumentClassifierProp
     setResults([])
 
     try {
-      // Simulate file processing with progress
-      for (let i = 0; i <= 100; i += 10) {
-        setProgress(i)
-        await new Promise(resolve => setTimeout(resolve, 100))
+      // Read file content
+      let fileContent = ""
+      
+      if (file.type.includes('text') || file.name.endsWith('.txt')) {
+        fileContent = await file.text()
+      } else {
+        // For other files, simulate content extraction
+        fileContent = `Dosya analizi: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`
       }
 
-      // Mock classification results (in real app, would use AI model)
-      const mockResults: ClassificationResult[] = [
-        { label: "Invoice", confidence: 0.89, category: "Financial" },
-        { label: "Contract", confidence: 0.76, category: "Legal" },
-        { label: "Report", confidence: 0.65, category: "Business" },
-        { label: "Resume", confidence: 0.45, category: "HR" }
-      ].slice(0, isPremium ? 4 : 2)
+      console.log('Dosya içeriği okundu:', fileContent.substring(0, 100))
 
-      setResults(mockResults)
+      // Simulate AI processing with realistic progress
+      const steps = ['Dosya okunuyor...', 'İçerik analiz ediliyor...', 'AI modeli çalışıyor...', 'Sonuçlar hazırlanıyor...']
+      
+      for (let i = 0; i <= 100; i += 25) {
+        setProgress(i)
+        if (i < 100) {
+          const stepIndex = Math.floor(i / 25)
+          console.log(steps[stepIndex])
+        }
+        await new Promise(resolve => setTimeout(resolve, 200))
+      }
+
+      // Enhanced classification based on file content and name
+      const fileName = file.name.toLowerCase()
+      const content = fileContent.toLowerCase()
+      
+      let mockResults: ClassificationResult[] = []
+      
+      // Smart classification based on content
+      if (fileName.includes('invoice') || fileName.includes('fatura') || 
+          content.includes('invoice') || content.includes('fatura') || content.includes('total') || content.includes('amount')) {
+        mockResults = [
+          { label: "Invoice/Fatura", confidence: 0.92, category: "Financial" },
+          { label: "Receipt", confidence: 0.78, category: "Financial" },
+          { label: "Purchase Order", confidence: 0.65, category: "Business" }
+        ]
+      } else if (fileName.includes('contract') || fileName.includes('sözleşme') || 
+                 content.includes('contract') || content.includes('agreement') || content.includes('terms')) {
+        mockResults = [
+          { label: "Contract/Sözleşme", confidence: 0.89, category: "Legal" },
+          { label: "Agreement", confidence: 0.76, category: "Legal" },
+          { label: "Terms of Service", confidence: 0.62, category: "Legal" }
+        ]
+      } else if (fileName.includes('cv') || fileName.includes('resume') || fileName.includes('özgeçmiş') ||
+                 content.includes('experience') || content.includes('education') || content.includes('skills')) {
+        mockResults = [
+          { label: "Resume/CV", confidence: 0.88, category: "HR" },
+          { label: "Job Application", confidence: 0.74, category: "HR" },
+          { label: "Portfolio", confidence: 0.58, category: "Personal" }
+        ]
+      } else if (fileName.includes('report') || fileName.includes('rapor') ||
+                 content.includes('analysis') || content.includes('summary') || content.includes('conclusion')) {
+        mockResults = [
+          { label: "Report/Rapor", confidence: 0.85, category: "Business" },
+          { label: "Analysis", confidence: 0.72, category: "Research" },
+          { label: "Study", confidence: 0.64, category: "Academic" }
+        ]
+      } else {
+        // Generic classification
+        mockResults = [
+          { label: "General Document", confidence: 0.75, category: "General" },
+          { label: "Text File", confidence: 0.68, category: "General" },
+          { label: "Unclassified", confidence: 0.45, category: "Other" }
+        ]
+      }
+
+      // Filter results based on premium status
+      const finalResults = mockResults.slice(0, isPremium ? 4 : 3)
+      
+      setResults(finalResults)
       toast({
-        title: "Sınıflandırma tamamlandı!",
-        description: `${file.name} başarıyla analiz edildi.`
+        title: "✨ Sınıflandırma tamamlandı!",
+        description: `${file.name} başarıyla analiz edildi. ${finalResults.length} kategori belirlendi.`
       })
+      
+      console.log('Sınıflandırma tamamlandı:', finalResults)
+      
     } catch (error) {
+      console.error('Dosya işleme hatası:', error)
       toast({
-        title: "Hata oluştu",
-        description: "Dosya işlenirken bir hata oluştu.",
+        title: "❌ Hata oluştu",
+        description: "Dosya işlenirken bir hata oluştu. Lütfen tekrar deneyin.",
         variant: "destructive"
       })
     } finally {
