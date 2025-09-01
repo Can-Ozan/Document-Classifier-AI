@@ -37,15 +37,27 @@
 
     --radius: 0.75rem;
 
-    /* AI Theme Colors */
-    --ai-blue: 217 91% 59%;
-    --ai-purple: 262 83% 58%;
-    --ai-gradient: linear-gradient(135deg, hsl(217 91% 59%), hsl(262 83% 58%));
-    --ai-gradient-subtle: linear-gradient(135deg, hsl(217 91% 59% / 0.1), hsl(262 83% 58% / 0.1));
+    /* Trust Psychology Colors */
+    --trust-blue: 210 100% 56%;
+    --trust-light: 210 100% 85%;
+    --efficiency-green: 142 71% 45%;
+    --efficiency-light: 142 71% 85%;
+    --security-orange: 25 95% 53%;
+    --security-light: 25 95% 85%;
+    --premium-gold: 43 96% 56%;
+    --premium-light: 43 96% 85%;
+    --neutral-slate: 215 16% 47%;
     
-    /* Premium Theme */
-    --premium-gold: 45 93% 58%;
-    --premium-gradient: linear-gradient(135deg, hsl(262 83% 58%), hsl(45 93% 58%));
+    /* Primary gradients using trust colors */
+    --ai-gradient: linear-gradient(135deg, hsl(var(--trust-blue)), hsl(var(--efficiency-green)));
+    --ai-gradient-subtle: linear-gradient(135deg, hsl(var(--trust-blue) / 0.1), hsl(var(--efficiency-green) / 0.1));
+    --premium-gradient: linear-gradient(135deg, hsl(var(--premium-gold)), hsl(var(--security-orange)));
+    --success-gradient: linear-gradient(135deg, hsl(var(--efficiency-green)), hsl(var(--trust-blue)));
+    
+    /* Update primary to use trust color */
+    --primary: var(--trust-blue);
+    --ai-blue: var(--trust-blue);
+    --ai-purple: var(--efficiency-green);
     
     /* Glass Effect */
     --glass-bg: 0 0% 100% / 0.8;

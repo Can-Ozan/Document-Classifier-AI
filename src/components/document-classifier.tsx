@@ -51,6 +51,38 @@ export function DocumentClassifier({ isPremium = false }: DocumentClassifierProp
     processFiles(files)
   }
 
+  const generateDetailedReport = (file: File, results: ClassificationResult[]) => {
+    const fileName = file.name
+    const fileSize = (file.size / 1024).toFixed(1)
+    const topResult = results[0]
+    
+    return {
+      documentInfo: {
+        name: fileName,
+        size: `${fileSize} KB`,
+        type: file.type || 'Unknown',
+        uploadDate: new Date().toLocaleString('tr-TR')
+      },
+      classification: {
+        primaryCategory: topResult.label,
+        confidence: `${(topResult.confidence * 100).toFixed(1)}%`,
+        securityScore: isPremium ? Math.floor(Math.random() * 30) + 70 : 'Premium Gerekli',
+        riskLevel: topResult.confidence > 0.8 ? 'Düşük' : topResult.confidence > 0.6 ? 'Orta' : 'Yüksek'
+      },
+      analysis: {
+        contentType: topResult.category,
+        language: 'Turkish/English (Auto-detected)',
+        pages: Math.floor(Math.random() * 10) + 1,
+        wordCount: Math.floor(Math.random() * 1000) + 100
+      },
+      recommendations: isPremium ? [
+        'Güvenli klasörde saklanmalı',
+        'Düzenli yedekleme önerilir',
+        'Hassas veri tespit edilmedi'
+      ] : ['Premium ile daha fazla öneri']
+    }
+  }
+
   const processFiles = async (files: File[]) => {
     if (files.length === 0) return
 
@@ -82,7 +114,7 @@ export function DocumentClassifier({ isPremium = false }: DocumentClassifierProp
       console.log('Dosya içeriği okundu:', fileContent.substring(0, 100))
 
       // Simulate AI processing with realistic progress
-      const steps = ['Dosya okunuyor...', 'İçerik analiz ediliyor...', 'AI modeli çalışıyor...', 'Sonuçlar hazırlanıyor...']
+      const steps = ['Dosya okunuyor...', 'İçerik analiz ediliyor...', 'AI modeli çalışıyor...', 'Detaylı rapor hazırlanıyor...']
       
       for (let i = 0; i <= 100; i += 25) {
         setProgress(i)
@@ -90,7 +122,7 @@ export function DocumentClassifier({ isPremium = false }: DocumentClassifierProp
           const stepIndex = Math.floor(i / 25)
           console.log(steps[stepIndex])
         }
-        await new Promise(resolve => setTimeout(resolve, 200))
+        await new Promise(resolve => setTimeout(resolve, 300))
       }
 
       // Enhanced classification based on file content and name
@@ -98,10 +130,12 @@ export function DocumentClassifier({ isPremium = false }: DocumentClassifierProp
       const content = fileContent.toLowerCase()
       
       let mockResults: ClassificationResult[] = []
+      let documentType = ""
       
       // Smart classification based on content
       if (fileName.includes('invoice') || fileName.includes('fatura') || 
           content.includes('invoice') || content.includes('fatura') || content.includes('total') || content.includes('amount')) {
+        documentType = "Bu bir fatura belgesidir. Mali kayıt amaçlı önemli bir dokümandır."
         mockResults = [
           { label: "Invoice/Fatura", confidence: 0.92, category: "Financial" },
           { label: "Receipt", confidence: 0.78, category: "Financial" },
@@ -109,6 +143,7 @@ export function DocumentClassifier({ isPremium = false }: DocumentClassifierProp
         ]
       } else if (fileName.includes('contract') || fileName.includes('sözleşme') || 
                  content.includes('contract') || content.includes('agreement') || content.includes('terms')) {
+        documentType = "Bu bir sözleşme belgesidir. Yasal yükümlülükler içeren önemli bir dokümandır."
         mockResults = [
           { label: "Contract/Sözleşme", confidence: 0.89, category: "Legal" },
           { label: "Agreement", confidence: 0.76, category: "Legal" },
@@ -116,6 +151,7 @@ export function DocumentClassifier({ isPremium = false }: DocumentClassifierProp
         ]
       } else if (fileName.includes('cv') || fileName.includes('resume') || fileName.includes('özgeçmiş') ||
                  content.includes('experience') || content.includes('education') || content.includes('skills')) {
+        documentType = "Bu bir özgeçmiş belgesidir. Kişisel ve mesleki bilgileri içerir."
         mockResults = [
           { label: "Resume/CV", confidence: 0.88, category: "HR" },
           { label: "Job Application", confidence: 0.74, category: "HR" },
@@ -123,13 +159,14 @@ export function DocumentClassifier({ isPremium = false }: DocumentClassifierProp
         ]
       } else if (fileName.includes('report') || fileName.includes('rapor') ||
                  content.includes('analysis') || content.includes('summary') || content.includes('conclusion')) {
+        documentType = "Bu bir rapor belgesidir. Analiz ve değerlendirme içerir."
         mockResults = [
           { label: "Report/Rapor", confidence: 0.85, category: "Business" },
           { label: "Analysis", confidence: 0.72, category: "Research" },
           { label: "Study", confidence: 0.64, category: "Academic" }
         ]
       } else {
-        // Generic classification
+        documentType = "Bu genel bir metin belgesidir. İçerik analizi için daha fazla veri gerekli."
         mockResults = [
           { label: "General Document", confidence: 0.75, category: "General" },
           { label: "Text File", confidence: 0.68, category: "General" },
@@ -139,12 +176,20 @@ export function DocumentClassifier({ isPremium = false }: DocumentClassifierProp
 
       // Filter results based on premium status
       const finalResults = mockResults.slice(0, isPremium ? 4 : 3)
+      const detailedReport = generateDetailedReport(file, finalResults)
       
       setResults(finalResults)
+      
+      // Show detailed toast with document identification
       toast({
-        title: "✨ Sınıflandırma tamamlandı!",
-        description: `${file.name} başarıyla analiz edildi. ${finalResults.length} kategori belirlendi.`
+        title: "✨ Analiz Tamamlandı!",
+        description: `${documentType} ${finalResults.length} kategori belirlendi.`
       })
+      
+      // Log detailed report for premium users
+      if (isPremium) {
+        console.log('📊 Detaylı Rapor:', detailedReport)
+      }
       
       console.log('Sınıflandırma tamamlandı:', finalResults)
       

@@ -1,7 +1,8 @@
-import { FileText, Crown } from "lucide-react"
+import { FileText, Crown, Settings } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { Badge } from "@/components/ui/badge"
+import { useNavigate } from "react-router-dom"
 
 interface HeaderProps {
   isPremium?: boolean
@@ -9,6 +10,8 @@ interface HeaderProps {
 }
 
 export function Header({ isPremium = false, onUpgrade }: HeaderProps) {
+  const navigate = useNavigate()
+  
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-md">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
@@ -23,6 +26,15 @@ export function Header({ isPremium = false, onUpgrade }: HeaderProps) {
         </div>
 
         <div className="flex items-center gap-4">
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={() => navigate('/settings')}
+          >
+            <Settings className="w-4 h-4 mr-2" />
+            Ayarlar
+          </Button>
+          
           {isPremium ? (
             <Badge className="bg-premium-gradient text-white">
               <Crown className="w-3 h-3 mr-1" />

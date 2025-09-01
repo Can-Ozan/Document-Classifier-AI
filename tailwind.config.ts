@@ -67,14 +67,31 @@ export default {
 					blue: 'hsl(var(--ai-blue))',
 					purple: 'hsl(var(--ai-purple))'
 				},
+				trust: {
+					blue: 'hsl(var(--trust-blue))',
+					light: 'hsl(var(--trust-light))'
+				},
+				efficiency: {
+					green: 'hsl(var(--efficiency-green))',
+					light: 'hsl(var(--efficiency-light))'
+				},
+				security: {
+					orange: 'hsl(var(--security-orange))',
+					light: 'hsl(var(--security-light))'
+				},
 				premium: {
-					gold: 'hsl(var(--premium-gold))'
+					gold: 'hsl(var(--premium-gold))',
+					light: 'hsl(var(--premium-light))'
+				},
+				neutral: {
+					slate: 'hsl(var(--neutral-slate))'
 				}
 			},
 			backgroundImage: {
 				'ai-gradient': 'var(--ai-gradient)',
 				'ai-gradient-subtle': 'var(--ai-gradient-subtle)',
-				'premium-gradient': 'var(--premium-gradient)'
+				'premium-gradient': 'var(--premium-gradient)',
+				'success-gradient': 'var(--success-gradient)'
 			},
 			boxShadow: {
 				'glass': 'var(--glass-shadow)',

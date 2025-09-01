@@ -13,9 +13,7 @@ const Index = () => {
   const [activeTab, setActiveTab] = useState("classifier")
 
   const handleUpgrade = () => {
-    // In a real app, this would open a payment modal
-    setIsPremium(true)
-    setActiveTab("classifier")
+    window.location.href = '/payment'
   }
 
   return (
@@ -52,7 +50,10 @@ const Index = () => {
                   <Button 
                     size="lg" 
                     className="bg-white text-black hover:bg-white/90"
-                    onClick={() => setActiveTab("classifier")}
+                    onClick={() => {
+                      setActiveTab("classifier")
+                      document.getElementById('classifier-section')?.scrollIntoView({ behavior: 'smooth' })
+                    }}
                   >
                     <FileText className="w-5 h-5 mr-2" />
                     Hemen Başla
@@ -116,7 +117,7 @@ const Index = () => {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="classifier" className="space-y-8">
+          <TabsContent value="classifier" className="space-y-8" id="classifier-section">
             <DocumentClassifier isPremium={isPremium} />
           </TabsContent>
 
