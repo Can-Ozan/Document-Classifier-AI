@@ -34,7 +34,7 @@ export function DocumentClassifier({ isPremium = false }: DocumentClassifierProp
 
   const categories = isPremium 
     ? ['Invoice', 'Contract', 'Resume', 'Report', 'Legal', 'Medical', 'Technical', 'Financial', 'Marketing', 'Academic']
-    : ['Invoice', 'Contract', 'Resume', 'Report']
+    : ['Invoice', 'Contract', 'Resume', 'Report', 'Medical']
 
   const supportedLanguages = {
     'tr': 'Türkçe',
@@ -112,10 +112,12 @@ export function DocumentClassifier({ isPremium = false }: DocumentClassifierProp
   } => {
     const words = content.toLowerCase().split(/\s+/)
     const keywordsByCategory = {
-      'invoice': ['fatura', 'invoice', 'amount', 'total', 'miktar', 'tutar', 'payment', 'ödeme'],
-      'contract': ['sözleşme', 'contract', 'agreement', 'terms', 'şartlar', 'imza', 'signature'],
-      'resume': ['özgeçmiş', 'resume', 'cv', 'experience', 'deneyim', 'education', 'eğitim', 'skills'],
-      'report': ['rapor', 'report', 'analysis', 'analiz', 'summary', 'özet', 'conclusion', 'sonuç']
+      'invoice': ['fatura', 'invoice', 'amount', 'total', 'miktar', 'tutar', 'payment', 'ödeme', 'bill', 'receipt'],
+      'contract': ['sözleşme', 'contract', 'agreement', 'terms', 'şartlar', 'imza', 'signature', 'clauses'],
+      'resume': ['özgeçmiş', 'resume', 'cv', 'experience', 'deneyim', 'education', 'eğitim', 'skills', 'curriculum'],
+      'report': ['rapor', 'report', 'analysis', 'analiz', 'summary', 'özet', 'conclusion', 'sonuç', 'findings'],
+      'medical': ['sağlık', 'health', 'medical', 'tıbbi', 'hasta', 'patient', 'doktor', 'doctor', 'diagnosis', 'teşhis', 'tedavi', 'treatment', 'clinic', 'klinik', 'hospital', 'hastane', 'blood', 'kan', 'test', 'examination', 'muayene', 'prescription', 'reçete', 'medicine', 'ilaç'],
+      'legal': ['yasal', 'legal', 'court', 'mahkeme', 'law', 'hukuk', 'attorney', 'avukat', 'lawsuit', 'dava']
     }
     
     const category = classification.toLowerCase().split('/')[0].toLowerCase()
@@ -195,12 +197,33 @@ export function DocumentClassifier({ isPremium = false }: DocumentClassifierProp
       
       if (file.type.includes('text') || file.name.endsWith('.txt')) {
         fileContent = await file.text()
+      } else if (file.type.includes('pdf')) {
+        // Enhanced PDF content simulation based on file name and size
+        const fileName = file.name.toLowerCase()
+        let simulatedContent = `PDF Belgesi: ${file.name}\n`
+        
+        // Simulate PDF content based on filename patterns
+        if (fileName.includes('sağlık') || fileName.includes('health') || fileName.includes('medical') || fileName.includes('tıbbi')) {
+          simulatedContent += `Sağlık Raporu\nHasta Bilgileri\nTahlil Sonuçları\nDoktor Görüşü\nTedavi Önerileri\nKan değerleri normal\nVitamin seviyeleri\nTanı ve tedavi planı\nMuayene notları\nReçete bilgileri`
+        } else if (fileName.includes('fatura') || fileName.includes('invoice')) {
+          simulatedContent += `Fatura No: 2024-001\nTutar: 1,250.00 TL\nÖdeme Tarihi\nVergi Oranı\nToplam Tutar`
+        } else if (fileName.includes('sözleşme') || fileName.includes('contract')) {
+          simulatedContent += `Sözleşme Maddeleri\nTarafların Yükümlülükleri\nİmza Alanı\nŞartlar ve Koşullar`
+        } else if (fileName.includes('cv') || fileName.includes('resume') || fileName.includes('özgeçmiş')) {
+          simulatedContent += `Kişisel Bilgiler\nİş Deneyimi\nEğitim Geçmişi\nBeceriler\nReferanslar`
+        } else {
+          simulatedContent += `Genel PDF içeriği\nMetin analizi\nBelge yapısı\nSayfa bilgileri`
+        }
+        
+        fileContent = simulatedContent
       } else {
         // For other files, simulate content extraction
         fileContent = `Dosya analizi: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`
       }
 
-      console.log('Dosya içeriği okundu:', fileContent.substring(0, 100))
+      console.log('Dosya içeriği okundu:', fileContent.substring(0, 200))
+      console.log('Dosya adı:', file.name.toLowerCase())
+      console.log('Dosya tipi:', file.type)
 
       // Detect language first
       const language = detectLanguage(fileContent)
@@ -234,8 +257,41 @@ export function DocumentClassifier({ isPremium = false }: DocumentClassifierProp
       let mockResults: ClassificationResult[] = []
       let documentType = ""
       
-      // Smart classification based on content with multi-language support
-      if (fileName.includes('invoice') || fileName.includes('fatura') || 
+      // Enhanced smart classification with priority order
+      if (fileName.includes('sağlık') || fileName.includes('health') || fileName.includes('medical') || fileName.includes('tıbbi') ||
+          content.includes('sağlık') || content.includes('health') || content.includes('medical') || content.includes('hasta') ||
+          content.includes('patient') || content.includes('doktor') || content.includes('doctor') || content.includes('teşhis') ||
+          content.includes('diagnosis') || content.includes('tedavi') || content.includes('treatment') || content.includes('kan') ||
+          content.includes('blood') || content.includes('tahlil') || content.includes('test') || content.includes('muayene') ||
+          content.includes('examination') || content.includes('klinik') || content.includes('clinic') || content.includes('hastane') ||
+          content.includes('hospital') || content.includes('reçete') || content.includes('prescription') || content.includes('ilaç')) {
+        documentType = "Bu bir sağlık/tıbbi belgesidir. Hasta bilgileri ve tıbbi veriler içerir."
+        const explanation = isPremium ? generateExplanation(fileContent, "Medical/Sağlık") : undefined
+        mockResults = [
+          { 
+            label: "Medical/Sağlık Raporu", 
+            confidence: 0.94, 
+            category: "Medical",
+            explanation,
+            language,
+            riskLevel: 'medium'
+          },
+          { 
+            label: "Health Report", 
+            confidence: 0.87, 
+            category: "Medical",
+            language,
+            riskLevel: 'medium'
+          },
+          { 
+            label: "Lab Results", 
+            confidence: 0.79, 
+            category: "Medical",
+            language,
+            riskLevel: 'low'
+          }
+        ]
+      } else if (fileName.includes('invoice') || fileName.includes('fatura') || 
           content.includes('invoice') || content.includes('fatura') || content.includes('total') || content.includes('amount') ||
           content.includes('facture') || content.includes('rechnung') || content.includes('fattura')) {
         documentType = "Bu bir fatura belgesidir. Mali kayıt amaçlı önemli bir dokümandır."
@@ -353,26 +409,28 @@ export function DocumentClassifier({ isPremium = false }: DocumentClassifierProp
         ]
       } else {
         documentType = "Bu genel bir metin belgesidir. İçerik analizi için daha fazla veri gerekli."
+        // Enhanced unknown document detection
+        console.log('Belge sınıflandırılamadı. İçerik analizi:', content.substring(0, 200))
         const explanation = isPremium ? generateExplanation(fileContent, "General Document") : undefined
         mockResults = [
           { 
             label: "General Document", 
-            confidence: 0.75, 
+            confidence: 0.65, 
             category: "General",
             explanation,
             language,
-            riskLevel: 'low'
+            riskLevel: 'medium'
           },
           { 
             label: "Text File", 
-            confidence: 0.68, 
+            confidence: 0.58, 
             category: "General",
             language,
             riskLevel: 'low'
           },
           { 
             label: "Unclassified", 
-            confidence: 0.45, 
+            confidence: 0.35, 
             category: "Other",
             language,
             riskLevel: 'high'
