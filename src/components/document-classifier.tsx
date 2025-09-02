@@ -10,6 +10,13 @@ interface ClassificationResult {
   label: string
   confidence: number
   category: string
+  explanation?: {
+    keywords: string[]
+    highlightedText?: string
+    reasoning: string
+  }
+  language?: string
+  riskLevel: 'low' | 'medium' | 'high'
 }
 
 interface DocumentClassifierProps {
@@ -21,11 +28,26 @@ export function DocumentClassifier({ isPremium = false }: DocumentClassifierProp
   const [progress, setProgress] = useState(0)
   const [results, setResults] = useState<ClassificationResult[]>([])
   const [dragActive, setDragActive] = useState(false)
+  const [detectedLanguage, setDetectedLanguage] = useState<string>("")
+  const [showExplanation, setShowExplanation] = useState(false)
   const { toast } = useToast()
 
   const categories = isPremium 
     ? ['Invoice', 'Contract', 'Resume', 'Report', 'Legal', 'Medical', 'Technical', 'Financial', 'Marketing', 'Academic']
     : ['Invoice', 'Contract', 'Resume', 'Report']
+
+  const supportedLanguages = {
+    'tr': 'Türkçe',
+    'en': 'English',
+    'de': 'Deutsch',
+    'fr': 'Français',
+    'es': 'Español',
+    'it': 'Italiano',
+    'pt': 'Português',
+    'ru': 'Русский',
+    'ar': 'العربية',
+    'zh': '中文'
+  }
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -51,6 +73,70 @@ export function DocumentClassifier({ isPremium = false }: DocumentClassifierProp
     processFiles(files)
   }
 
+  const detectLanguage = (text: string): string => {
+    const commonWords = {
+      'tr': ['ve', 'bir', 'bu', 'ile', 'için', 'olan', 'çok', 'daha', 'şu', 'kadar'],
+      'en': ['the', 'and', 'a', 'to', 'of', 'in', 'is', 'it', 'you', 'that'],
+      'de': ['der', 'die', 'und', 'in', 'den', 'von', 'zu', 'das', 'mit', 'sich'],
+      'fr': ['le', 'de', 'et', 'à', 'un', 'il', 'être', 'et', 'en', 'avoir'],
+      'es': ['el', 'la', 'de', 'que', 'y', 'a', 'en', 'un', 'ser', 'se'],
+      'it': ['il', 'di', 'e', 'la', 'a', 'che', 'per', 'un', 'in', 'con'],
+      'pt': ['o', 'de', 'e', 'a', 'do', 'que', 'em', 'um', 'para', 'com'],
+      'ru': ['и', 'в', 'не', 'на', 'я', 'быть', 'с', 'а', 'как', 'его'],
+      'ar': ['في', 'من', 'إلى', 'عن', 'مع', 'هذا', 'هذه', 'التي', 'التي', 'كان'],
+      'zh': ['的', '是', '在', '我', '有', '和', '就', '不', '人', '都']
+    }
+    
+    const lowerText = text.toLowerCase()
+    let maxScore = 0
+    let detectedLang = 'en'
+    
+    Object.entries(commonWords).forEach(([lang, words]) => {
+      let score = 0
+      words.forEach(word => {
+        if (lowerText.includes(word)) score++
+      })
+      if (score > maxScore) {
+        maxScore = score
+        detectedLang = lang
+      }
+    })
+    
+    return detectedLang
+  }
+
+  const generateExplanation = (content: string, classification: string): {
+    keywords: string[],
+    highlightedText: string,
+    reasoning: string
+  } => {
+    const words = content.toLowerCase().split(/\s+/)
+    const keywordsByCategory = {
+      'invoice': ['fatura', 'invoice', 'amount', 'total', 'miktar', 'tutar', 'payment', 'ödeme'],
+      'contract': ['sözleşme', 'contract', 'agreement', 'terms', 'şartlar', 'imza', 'signature'],
+      'resume': ['özgeçmiş', 'resume', 'cv', 'experience', 'deneyim', 'education', 'eğitim', 'skills'],
+      'report': ['rapor', 'report', 'analysis', 'analiz', 'summary', 'özet', 'conclusion', 'sonuç']
+    }
+    
+    const category = classification.toLowerCase().split('/')[0].toLowerCase()
+    const relevantKeywords = keywordsByCategory[category] || []
+    const foundKeywords = relevantKeywords.filter(kw => content.toLowerCase().includes(kw))
+    
+    let highlightedText = content
+    foundKeywords.forEach(keyword => {
+      const regex = new RegExp(`(${keyword})`, 'gi')
+      highlightedText = highlightedText.replace(regex, '<mark class="bg-primary/20 px-1 rounded">$1</mark>')
+    })
+    
+    const reasoning = `AI modeli bu belgeyi "${classification}" olarak sınıflandırdı çünkü: ${foundKeywords.join(', ')} gibi anahtar kelimeler tespit edildi.`
+    
+    return {
+      keywords: foundKeywords,
+      highlightedText,
+      reasoning
+    }
+  }
+
   const generateDetailedReport = (file: File, results: ClassificationResult[]) => {
     const fileName = file.name
     const fileSize = (file.size / 1024).toFixed(1)
@@ -61,24 +147,27 @@ export function DocumentClassifier({ isPremium = false }: DocumentClassifierProp
         name: fileName,
         size: `${fileSize} KB`,
         type: file.type || 'Unknown',
-        uploadDate: new Date().toLocaleString('tr-TR')
+        uploadDate: new Date().toLocaleString('tr-TR'),
+        language: supportedLanguages[detectedLanguage] || 'Unknown'
       },
       classification: {
         primaryCategory: topResult.label,
         confidence: `${(topResult.confidence * 100).toFixed(1)}%`,
         securityScore: isPremium ? Math.floor(Math.random() * 30) + 70 : 'Premium Gerekli',
-        riskLevel: topResult.confidence > 0.8 ? 'Düşük' : topResult.confidence > 0.6 ? 'Orta' : 'Yüksek'
+        riskLevel: topResult.riskLevel,
+        explanation: topResult.explanation
       },
       analysis: {
         contentType: topResult.category,
-        language: 'Turkish/English (Auto-detected)',
+        language: supportedLanguages[detectedLanguage] || 'Auto-detected',
         pages: Math.floor(Math.random() * 10) + 1,
-        wordCount: Math.floor(Math.random() * 1000) + 100
+        wordCount: Math.floor(Math.random() * 1000) + 100,
+        keyInsights: topResult.explanation?.keywords || []
       },
       recommendations: isPremium ? [
         'Güvenli klasörde saklanmalı',
         'Düzenli yedekleme önerilir',
-        'Hassas veri tespit edilmedi'
+        topResult.riskLevel === 'high' ? 'Manuel inceleme önerilir' : 'Hassas veri tespit edilmedi'
       ] : ['Premium ile daha fazla öneri']
     }
   }
@@ -113,16 +202,29 @@ export function DocumentClassifier({ isPremium = false }: DocumentClassifierProp
 
       console.log('Dosya içeriği okundu:', fileContent.substring(0, 100))
 
-      // Simulate AI processing with realistic progress
-      const steps = ['Dosya okunuyor...', 'İçerik analiz ediliyor...', 'AI modeli çalışıyor...', 'Detaylı rapor hazırlanıyor...']
+      // Detect language first
+      const language = detectLanguage(fileContent)
+      setDetectedLanguage(language)
       
-      for (let i = 0; i <= 100; i += 25) {
-        setProgress(i)
+      // Simulate AI processing with realistic progress
+      const steps = [
+        'Dosya okunuyor...', 
+        'Dil tespiti yapılıyor...', 
+        'İçerik analiz ediliyor...', 
+        isPremium ? 'AI modeli çalışıyor...' : 'Temel sınıflandırma...', 
+        isPremium ? 'Açıklanabilir AI hesaplanıyor...' : 'Sonuçlar hazırlanıyor...',
+        'Detaylı rapor oluşturuluyor...'
+      ]
+      
+      for (let i = 0; i <= 100; i += Math.floor(100 / steps.length)) {
+        setProgress(Math.min(i, 100))
         if (i < 100) {
-          const stepIndex = Math.floor(i / 25)
-          console.log(steps[stepIndex])
+          const stepIndex = Math.floor(i / (100 / steps.length))
+          if (stepIndex < steps.length) {
+            console.log(steps[stepIndex])
+          }
         }
-        await new Promise(resolve => setTimeout(resolve, 300))
+        await new Promise(resolve => setTimeout(resolve, isPremium ? 400 : 250))
       }
 
       // Enhanced classification based on file content and name
@@ -132,45 +234,149 @@ export function DocumentClassifier({ isPremium = false }: DocumentClassifierProp
       let mockResults: ClassificationResult[] = []
       let documentType = ""
       
-      // Smart classification based on content
+      // Smart classification based on content with multi-language support
       if (fileName.includes('invoice') || fileName.includes('fatura') || 
-          content.includes('invoice') || content.includes('fatura') || content.includes('total') || content.includes('amount')) {
+          content.includes('invoice') || content.includes('fatura') || content.includes('total') || content.includes('amount') ||
+          content.includes('facture') || content.includes('rechnung') || content.includes('fattura')) {
         documentType = "Bu bir fatura belgesidir. Mali kayıt amaçlı önemli bir dokümandır."
+        const explanation = isPremium ? generateExplanation(fileContent, "Invoice/Fatura") : undefined
         mockResults = [
-          { label: "Invoice/Fatura", confidence: 0.92, category: "Financial" },
-          { label: "Receipt", confidence: 0.78, category: "Financial" },
-          { label: "Purchase Order", confidence: 0.65, category: "Business" }
+          { 
+            label: "Invoice/Fatura", 
+            confidence: 0.92, 
+            category: "Financial",
+            explanation,
+            language,
+            riskLevel: 'low'
+          },
+          { 
+            label: "Receipt", 
+            confidence: 0.78, 
+            category: "Financial",
+            language,
+            riskLevel: 'low'
+          },
+          { 
+            label: "Purchase Order", 
+            confidence: 0.65, 
+            category: "Business",
+            language,
+            riskLevel: 'low'
+          }
         ]
       } else if (fileName.includes('contract') || fileName.includes('sözleşme') || 
-                 content.includes('contract') || content.includes('agreement') || content.includes('terms')) {
+                 content.includes('contract') || content.includes('agreement') || content.includes('terms') ||
+                 content.includes('contrat') || content.includes('vertrag') || content.includes('contratto')) {
         documentType = "Bu bir sözleşme belgesidir. Yasal yükümlülükler içeren önemli bir dokümandır."
+        const explanation = isPremium ? generateExplanation(fileContent, "Contract/Sözleşme") : undefined
         mockResults = [
-          { label: "Contract/Sözleşme", confidence: 0.89, category: "Legal" },
-          { label: "Agreement", confidence: 0.76, category: "Legal" },
-          { label: "Terms of Service", confidence: 0.62, category: "Legal" }
+          { 
+            label: "Contract/Sözleşme", 
+            confidence: 0.89, 
+            category: "Legal",
+            explanation,
+            language,
+            riskLevel: 'medium'
+          },
+          { 
+            label: "Agreement", 
+            confidence: 0.76, 
+            category: "Legal",
+            language,
+            riskLevel: 'medium'
+          },
+          { 
+            label: "Terms of Service", 
+            confidence: 0.62, 
+            category: "Legal",
+            language,
+            riskLevel: 'low'
+          }
         ]
       } else if (fileName.includes('cv') || fileName.includes('resume') || fileName.includes('özgeçmiş') ||
-                 content.includes('experience') || content.includes('education') || content.includes('skills')) {
+                 content.includes('experience') || content.includes('education') || content.includes('skills') ||
+                 content.includes('curriculum') || content.includes('lebenslauf')) {
         documentType = "Bu bir özgeçmiş belgesidir. Kişisel ve mesleki bilgileri içerir."
+        const explanation = isPremium ? generateExplanation(fileContent, "Resume/CV") : undefined
         mockResults = [
-          { label: "Resume/CV", confidence: 0.88, category: "HR" },
-          { label: "Job Application", confidence: 0.74, category: "HR" },
-          { label: "Portfolio", confidence: 0.58, category: "Personal" }
+          { 
+            label: "Resume/CV", 
+            confidence: 0.88, 
+            category: "HR",
+            explanation,
+            language,
+            riskLevel: 'low'
+          },
+          { 
+            label: "Job Application", 
+            confidence: 0.74, 
+            category: "HR",
+            language,
+            riskLevel: 'low'
+          },
+          { 
+            label: "Portfolio", 
+            confidence: 0.58, 
+            category: "Personal",
+            language,
+            riskLevel: 'low'
+          }
         ]
       } else if (fileName.includes('report') || fileName.includes('rapor') ||
-                 content.includes('analysis') || content.includes('summary') || content.includes('conclusion')) {
+                 content.includes('analysis') || content.includes('summary') || content.includes('conclusion') ||
+                 content.includes('rapport') || content.includes('bericht') || content.includes('relazione')) {
         documentType = "Bu bir rapor belgesidir. Analiz ve değerlendirme içerir."
+        const explanation = isPremium ? generateExplanation(fileContent, "Report/Rapor") : undefined
         mockResults = [
-          { label: "Report/Rapor", confidence: 0.85, category: "Business" },
-          { label: "Analysis", confidence: 0.72, category: "Research" },
-          { label: "Study", confidence: 0.64, category: "Academic" }
+          { 
+            label: "Report/Rapor", 
+            confidence: 0.85, 
+            category: "Business",
+            explanation,
+            language,
+            riskLevel: 'low'
+          },
+          { 
+            label: "Analysis", 
+            confidence: 0.72, 
+            category: "Research",
+            language,
+            riskLevel: 'low'
+          },
+          { 
+            label: "Study", 
+            confidence: 0.64, 
+            category: "Academic",
+            language,
+            riskLevel: 'low'
+          }
         ]
       } else {
         documentType = "Bu genel bir metin belgesidir. İçerik analizi için daha fazla veri gerekli."
+        const explanation = isPremium ? generateExplanation(fileContent, "General Document") : undefined
         mockResults = [
-          { label: "General Document", confidence: 0.75, category: "General" },
-          { label: "Text File", confidence: 0.68, category: "General" },
-          { label: "Unclassified", confidence: 0.45, category: "Other" }
+          { 
+            label: "General Document", 
+            confidence: 0.75, 
+            category: "General",
+            explanation,
+            language,
+            riskLevel: 'low'
+          },
+          { 
+            label: "Text File", 
+            confidence: 0.68, 
+            category: "General",
+            language,
+            riskLevel: 'low'
+          },
+          { 
+            label: "Unclassified", 
+            confidence: 0.45, 
+            category: "Other",
+            language,
+            riskLevel: 'high'
+          }
         ]
       }
 
@@ -183,7 +389,7 @@ export function DocumentClassifier({ isPremium = false }: DocumentClassifierProp
       // Show detailed toast with document identification
       toast({
         title: "✨ Analiz Tamamlandı!",
-        description: `${documentType} ${finalResults.length} kategori belirlendi.`
+        description: `${documentType} Dil: ${supportedLanguages[language]}. ${finalResults.length} kategori belirlendi.`
       })
       
       // Log detailed report for premium users
@@ -280,36 +486,91 @@ export function DocumentClassifier({ isPremium = false }: DocumentClassifierProp
               <h3 className="text-lg font-semibold">Sınıflandırma Sonuçları</h3>
             </div>
             
-            <div className="grid gap-3">
-              {results.map((result, index) => (
-                <div 
-                  key={index}
-                  className="flex items-center justify-between p-4 bg-muted/50 rounded-lg backdrop-blur-sm"
-                >
-                  <div className="flex items-center gap-3">
-                    <Badge variant="secondary" className="bg-ai-gradient text-white">
-                      {result.label}
-                    </Badge>
-                    <span className="text-sm text-muted-foreground">
-                      {result.category}
-                    </span>
-                  </div>
-                  
-                  <div className="flex items-center gap-3">
-                    <div className="text-right">
-                      <div className="text-sm font-medium">
-                        %{(result.confidence * 100).toFixed(0)} güven
+            <div className="space-y-4">
+              {detectedLanguage && (
+                <div className="flex items-center gap-2 p-3 bg-success/10 rounded-lg border border-success/20">
+                  <div className="w-2 h-2 bg-success rounded-full"></div>
+                  <span className="text-sm font-medium">
+                    Tespit edilen dil: {supportedLanguages[detectedLanguage]}
+                  </span>
+                </div>
+              )}
+              
+              <div className="grid gap-3">
+                {results.map((result, index) => (
+                  <div 
+                    key={index}
+                    className="p-4 bg-muted/50 rounded-lg backdrop-blur-sm space-y-3"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Badge variant="secondary" className="bg-ai-gradient text-white">
+                          {result.label}
+                        </Badge>
+                        <span className="text-sm text-muted-foreground">
+                          {result.category}
+                        </span>
+                        <Badge 
+                          variant={result.riskLevel === 'low' ? 'default' : result.riskLevel === 'medium' ? 'secondary' : 'destructive'}
+                          className="text-xs"
+                        >
+                          {result.riskLevel === 'low' ? 'Düşük Risk' : result.riskLevel === 'medium' ? 'Orta Risk' : 'Yüksek Risk'}
+                        </Badge>
+                      </div>
+                      
+                      <div className="flex items-center gap-3">
+                        <div className="text-right">
+                          <div className="text-sm font-medium">
+                            %{(result.confidence * 100).toFixed(1)} güven
+                          </div>
+                          {result.confidence < 0.7 && (
+                            <div className="text-xs text-warning">
+                              Manuel inceleme önerilir
+                            </div>
+                          )}
+                        </div>
+                        <div className="w-20">
+                          <Progress 
+                            value={result.confidence * 100} 
+                            className="h-2"
+                          />
+                        </div>
                       </div>
                     </div>
-                    <div className="w-20">
-                      <Progress 
-                        value={result.confidence * 100} 
-                        className="h-2"
-                      />
-                    </div>
+                    
+                    {isPremium && result.explanation && (
+                      <div className="mt-3 space-y-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setShowExplanation(!showExplanation)}
+                          className="text-xs"
+                        >
+                          {showExplanation ? 'Açıklamayı Gizle' : 'Açıklama Göster'} 
+                          <Sparkles className="w-3 h-3 ml-1" />
+                        </Button>
+                        
+                        {showExplanation && (
+                          <div className="space-y-2 p-3 bg-primary/5 rounded-lg border border-primary/10">
+                            <div className="text-xs text-muted-foreground">
+                              <strong>Anahtar Kelimeler:</strong> {result.explanation.keywords.join(', ')}
+                            </div>
+                            <div className="text-xs">
+                              {result.explanation.reasoning}
+                            </div>
+                            {result.explanation.highlightedText && (
+                              <div 
+                                className="text-xs p-2 bg-background rounded border max-h-20 overflow-y-auto"
+                                dangerouslySetInnerHTML={{ __html: result.explanation.highlightedText.substring(0, 200) + '...' }}
+                              />
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
             
             {!isPremium && (
