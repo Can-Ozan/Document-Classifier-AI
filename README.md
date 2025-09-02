@@ -60,10 +60,10 @@
 
 ```bash
 # Clone the repository
-git clone <repository-url>
+git clone https://github.com/Can-Ozan/Document-Classifier-AI.git
 
 # Navigate to project directory
-cd ai-document-classifier
+cd Document-Classifier-AI
 
 # Install dependencies
 npm install
@@ -131,12 +131,9 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## 📞 Support
 
-- 📧 **Email**: support@dokumentai.com
-- 💬 **Chat**: Available in app for Premium users
-- 📖 **Documentation**: Comprehensive guides available
-
+- 📧 **Email**: yusufcanozan9@gmail.com
 ---
 
-**Made with ❤️ using modern web technologies and AI**
+**Made with ❤️ Yusuf Can Ozan**
 
 *Transform your document workflow today!* 🚀
