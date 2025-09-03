@@ -1,10 +1,15 @@
-import { useState, useCallback } from "react"
-import { Upload, FileText, Sparkles, Crown, Zap } from "lucide-react"
+import { useState, useCallback, useEffect } from "react"
+import { Upload, FileText, Sparkles, Crown, Zap, Settings, Brain, Target, Network } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/hooks/use-toast"
+import { CategoryManager } from "./category-manager"
+import { InformationExtractor } from "./information-extractor"
+import { DocumentRelationships } from "./document-relationships"
+import { calculateCategoryMatch, extractStructuredData, detectDocumentAnomalies } from "./enhanced-classifier-utils"
 
 interface ClassificationResult {
   label: string
@@ -17,6 +22,37 @@ interface ClassificationResult {
   }
   language?: string
   riskLevel: 'low' | 'medium' | 'high'
+  extractedData?: Record<string, any>
+  anomalies?: string[]
+}
+
+interface DocumentMetadata {
+  id: string
+  name: string
+  category: string
+  uploadDate: Date
+  size: number
+  extractedData: Record<string, any>
+  content: string
+  classificationResult?: ClassificationResult
+}
+
+interface CustomCategory {
+  id: string
+  name: string
+  description: string
+  keywords: string[]
+  extractionFields: Array<{
+    id: string
+    name: string
+    type: 'text' | 'number' | 'date' | 'email' | 'phone'
+    required: boolean
+    pattern?: string
+  }>
+  confidenceThreshold: number
+  isCustom: boolean
+  createdAt: Date
+  trainingExamples: number
 }
 
 interface DocumentClassifierProps {
@@ -30,11 +66,18 @@ export function DocumentClassifier({ isPremium = false }: DocumentClassifierProp
   const [dragActive, setDragActive] = useState(false)
   const [detectedLanguage, setDetectedLanguage] = useState<string>("")
   const [showExplanation, setShowExplanation] = useState(false)
+  const [activeTab, setActiveTab] = useState("classify")
+  const [processedDocuments, setProcessedDocuments] = useState<DocumentMetadata[]>([])
+  const [customCategories, setCustomCategories] = useState<CustomCategory[]>([])
+  const [currentDocumentContent, setCurrentDocumentContent] = useState<string>("")
+  const [selectedCategory, setSelectedCategory] = useState<string>("")
   const { toast } = useToast()
 
-  const categories = isPremium 
+  const baseCategories = isPremium 
     ? ['Invoice', 'Contract', 'Resume', 'Report', 'Legal', 'Medical', 'Technical', 'Financial', 'Marketing', 'Academic']
     : ['Invoice', 'Contract', 'Resume', 'Report', 'Medical']
+  
+  const allCategories = [...baseCategories, ...customCategories.map(c => c.name)]
 
   const supportedLanguages = {
     'tr': 'Türkçe',
@@ -119,6 +162,12 @@ export function DocumentClassifier({ isPremium = false }: DocumentClassifierProp
       'medical': ['sağlık', 'health', 'medical', 'tıbbi', 'hasta', 'patient', 'doktor', 'doctor', 'diagnosis', 'teşhis', 'tedavi', 'treatment', 'clinic', 'klinik', 'hospital', 'hastane', 'blood', 'kan', 'test', 'examination', 'muayene', 'prescription', 'reçete', 'medicine', 'ilaç'],
       'legal': ['yasal', 'legal', 'court', 'mahkeme', 'law', 'hukuk', 'attorney', 'avukat', 'lawsuit', 'dava']
     }
+    
+    // Add custom category keywords
+    customCategories.forEach(category => {
+      const categoryKey = category.name.toLowerCase().replace(/\s+/g, '_')
+      keywordsByCategory[categoryKey] = category.keywords
+    })
     
     const category = classification.toLowerCase().split('/')[0].toLowerCase()
     const relevantKeywords = keywordsByCategory[category] || []
@@ -250,15 +299,39 @@ export function DocumentClassifier({ isPremium = false }: DocumentClassifierProp
         await new Promise(resolve => setTimeout(resolve, isPremium ? 400 : 250))
       }
 
-      // Enhanced classification based on file content and name
+      // Enhanced classification with custom categories and zero-shot learning
       const fileName = file.name.toLowerCase()
       const content = fileContent.toLowerCase()
       
       let mockResults: ClassificationResult[] = []
       let documentType = ""
+      let isCustomCategory = false
       
-      // Enhanced smart classification with priority order
-      if (fileName.includes('sağlık') || fileName.includes('health') || fileName.includes('medical') || fileName.includes('tıbbi') ||
+      // First check custom categories with zero-shot learning
+      for (const customCategory of customCategories) {
+        const matchScore = calculateCategoryMatch(content, customCategory)
+        if (matchScore >= customCategory.confidenceThreshold) {
+          documentType = `Bu bir ${customCategory.name} belgesidir. ${customCategory.description}`
+          const explanation = isPremium ? generateExplanation(fileContent, customCategory.name) : undefined
+          mockResults.push({
+            label: customCategory.name,
+            confidence: matchScore,
+            category: customCategory.name,
+            explanation,
+            language,
+            riskLevel: matchScore > 0.9 ? 'low' : matchScore > 0.7 ? 'medium' : 'high',
+            extractedData: isPremium ? extractStructuredData(fileContent, customCategory) : {},
+            anomalies: isPremium ? detectDocumentAnomalies(fileContent, customCategory) : []
+          })
+          isCustomCategory = true
+          break
+        }
+      }
+      
+      // Only use default categories if no custom category matched
+      if (!isCustomCategory) {
+        // Enhanced smart classification with priority order
+        if (fileName.includes('sağlık') || fileName.includes('health') || fileName.includes('medical') || fileName.includes('tıbbi') ||
           content.includes('sağlık') || content.includes('health') || content.includes('medical') || content.includes('hasta') ||
           content.includes('patient') || content.includes('doktor') || content.includes('doctor') || content.includes('teşhis') ||
           content.includes('diagnosis') || content.includes('tedavi') || content.includes('treatment') || content.includes('kan') ||
@@ -437,11 +510,27 @@ export function DocumentClassifier({ isPremium = false }: DocumentClassifierProp
           }
         ]
       }
+      }
 
       // Filter results based on premium status
       const finalResults = mockResults.slice(0, isPremium ? 4 : 3)
       const detailedReport = generateDetailedReport(file, finalResults)
       
+      // Store processed document for relationship analysis
+      const processedDoc: DocumentMetadata = {
+        id: Date.now().toString(),
+        name: file.name,
+        category: finalResults[0]?.category || 'unknown',
+        uploadDate: new Date(),
+        size: file.size,
+        extractedData: finalResults[0]?.extractedData || {},
+        content: fileContent,
+        classificationResult: finalResults[0]
+      }
+      
+      setProcessedDocuments(prev => [...prev, processedDoc])
+      setCurrentDocumentContent(fileContent)
+      setSelectedCategory(finalResults[0]?.category || '')
       setResults(finalResults)
       
       // Show detailed toast with document identification
@@ -470,9 +559,30 @@ export function DocumentClassifier({ isPremium = false }: DocumentClassifierProp
   }
 
   return (
-    <div className="w-full max-w-4xl mx-auto space-y-6">
-      {/* Upload Area */}
-      <Card 
+    <div className="w-full max-w-6xl mx-auto space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="classify" className="flex items-center gap-2">
+            <Brain className="w-4 h-4" />
+            Sınıflandırma
+          </TabsTrigger>
+          <TabsTrigger value="extract" className="flex items-center gap-2">
+            <Target className="w-4 h-4" />
+            Bilgi Çıkarma
+          </TabsTrigger>
+          <TabsTrigger value="relationships" className="flex items-center gap-2">
+            <Network className="w-4 h-4" />
+            İlişkiler
+          </TabsTrigger>
+          <TabsTrigger value="categories" className="flex items-center gap-2">
+            <Settings className="w-4 h-4" />
+            Kategoriler
+          </TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="classify" className="space-y-6">
+          {/* Upload Area */}
+          <Card
         className={`relative overflow-hidden border-2 border-dashed transition-all duration-300 ${
           dragActive 
             ? 'border-primary bg-ai-gradient-subtle' 
@@ -641,6 +751,31 @@ export function DocumentClassifier({ isPremium = false }: DocumentClassifierProp
           </div>
         </Card>
       )}
+        </TabsContent>
+        
+        <TabsContent value="extract" className="space-y-6">
+          <InformationExtractor 
+            content={currentDocumentContent}
+            category={selectedCategory}
+            extractionFields={customCategories.find(c => c.name === selectedCategory)?.extractionFields}
+            isPremium={isPremium}
+          />
+        </TabsContent>
+        
+        <TabsContent value="relationships" className="space-y-6">
+          <DocumentRelationships 
+            documents={processedDocuments}
+            isPremium={isPremium}
+          />
+        </TabsContent>
+        
+        <TabsContent value="categories" className="space-y-6">
+          <CategoryManager 
+            isPremium={isPremium}
+            onCategoriesChange={setCustomCategories}
+          />
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }
